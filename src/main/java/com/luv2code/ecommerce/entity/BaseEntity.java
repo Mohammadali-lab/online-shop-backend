@@ -8,6 +8,7 @@ import org.hibernate.annotations.UpdateTimestamp;
 
 import java.io.Serializable;
 import java.time.LocalDateTime;
+import java.util.Date;
 import java.util.Objects;
 
 @Setter
@@ -22,13 +23,13 @@ public class BaseEntity implements Serializable {
     @Column(name = "id")
     private Long id;
 
+    @Column(name = "date_created")
     @CreationTimestamp
-    @Column(name = "created_at_date_time")
-    private LocalDateTime createdAtDateTime;
+    private Date createdAtDateTime;
 
+    @Column(name = "last_updated")
     @UpdateTimestamp
-    @Column(name = "updated_at_date_time")
-    private LocalDateTime updatedAtDateTime;
+    private Date updatedAtDateTime;
 
     @Override
     public boolean equals(Object o) {

@@ -1,9 +1,8 @@
 package com.luv2code.ecommerce.utils;
 
 
-import io.jsonwebtoken.Claims;
-import io.jsonwebtoken.Jwts;
-import io.jsonwebtoken.SignatureAlgorithm;
+import io.jsonwebtoken.*;
+import io.jsonwebtoken.security.SignatureException;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.stereotype.Component;
@@ -35,13 +34,13 @@ public class JwtUtil {
         return Jwts.parser().setSigningKey(SECRET_KEY).parseClaimsJws(token).getBody();
     }
 
-    private Boolean isTokenExpired(String token) {
+    public Boolean isTokenExpired(String token) {
         return extractExpiration(token).before(new Date());
     }
 
-    public String generateToken(UserDetails userDetails, boolean mobile) {
-        Claims claims = Jwts.claims().setSubject(userDetails.getUsername());
-        return createToken(claims, userDetails.getUsername(), mobile);
+    public String generateToken(String username, boolean mobile) {
+        Claims claims = Jwts.claims().setSubject(username);
+        return createToken(claims, username, mobile);
     }
 
     public String generateUnlimitedToken(UserDetails userDetails, boolean mobile){
@@ -81,8 +80,17 @@ public class JwtUtil {
                 .signWith(SignatureAlgorithm.HS256, SECRET_KEY).compact();
     }
 
-    public Boolean validateToken(String token, UserDetails userDetails) {
-        final String username = extractUsername(token);
-        return (username.equals(userDetails.getUsername()) && !isTokenExpired(token));
+//    public Boolean validateToken(String token) {
+//        return (!isTokenExpired(token));
+//    }
+
+    public boolean validateToken(String token) {
+        try {
+            Jwts.parser().setSigningKey(SECRET_KEY).parseClaimsJws(token);
+            return true;
+        } catch (SignatureException | MalformedJwtException | ExpiredJwtException | UnsupportedJwtException | IllegalArgumentException ex) {
+            // Handle exception or return false based on your application's logic
+            return false;
+        }
     }
 }

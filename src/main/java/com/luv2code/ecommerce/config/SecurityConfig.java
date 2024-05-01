@@ -3,6 +3,7 @@ package com.luv2code.ecommerce.config;
 import com.luv2code.ecommerce.dao.UserRepository;
 import com.luv2code.ecommerce.entity.User;
 import com.luv2code.ecommerce.service.UserService;
+import com.luv2code.ecommerce.utils.CustomUserDetails;
 import com.luv2code.ecommerce.utils.JwtRequestFilter;
 import org.apache.log4j.Logger;
 import org.springframework.context.annotation.Bean;
@@ -22,7 +23,12 @@ import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
+import org.springframework.security.web.authentication.logout.LogoutSuccessHandler;
+import org.springframework.web.cors.CorsConfiguration;
+import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
+import org.springframework.web.filter.CorsFilter;
 
+import javax.servlet.http.HttpServletResponse;
 import javax.sql.DataSource;
 import java.nio.file.attribute.UserPrincipalNotFoundException;
 
@@ -50,27 +56,45 @@ public class SecurityConfig extends WebSecurityConfigurerAdapter {
     @Override
     protected void configure(HttpSecurity http) throws Exception {
 
-        logger.debug(http.toString());
-//TODO User Role Permits : "/api/users/check-otp-code" , ,"/whale-bitex/api/users/resend-otp-code"
-        http.httpBasic().and()
-                .cors()
-                .and()
-                .authorizeRequests()
-                .antMatchers("/h2-console/**").permitAll()
-//                .antMatchers(HttpMethod.POST,"/api/orders/buy","/api/orders/sell","/hd/transaction-for-withdrawal-request").authenticated()
-//                .antMatchers(HttpMethod.DELETE,"/api/orders/**").authenticated()
-                .anyRequest().permitAll()
-//                .loginPage("/api/users/send-error")
-                .and()
-                .logout().permitAll()
-                .and()
-                .exceptionHandling().and().sessionManagement()
+        // Enable CORS and disable CSRF
+        http = http.cors().and().csrf().disable();
+
+        // Set session management to stateless
+        http = http
+                .sessionManagement()
                 .sessionCreationPolicy(SessionCreationPolicy.STATELESS)
-                .and().headers().frameOptions().sameOrigin()
-                .and().csrf().disable();
+                .and();
 
-        http.addFilterBefore(jwtRequestFilter, UsernamePasswordAuthenticationFilter.class);
+        // Set unauthorized requests exception handler
+        http = http
+                .exceptionHandling()
+                .authenticationEntryPoint(
+                        (request, response, ex) -> {
+                            response.sendError(
+                                    HttpServletResponse.SC_UNAUTHORIZED,
+                                    ex.getMessage()
+                            );
+                        }
+                )
+                .and();
+        // Set permissions on endpoints
+        http.authorizeRequests()
+                // Our public endpoints
+                .antMatchers("/api/user/register","/api/user/login").permitAll()
+                // Our private endpoints
+                .anyRequest().authenticated();
+//                .and()
+//                .logout()
+//                .logoutUrl("/api/user/logout") // Define logout URL
+//                .logoutSuccessHandler(logoutSuccessHandler()) // Custom logout success handler
+//                .invalidateHttpSession(true) // Invalidate session
+//                .deleteCookies("JSESSIONID"); // Delete cookies if any;
 
+        // Add JWT token filter
+        http.addFilterBefore(
+                jwtRequestFilter,
+                UsernamePasswordAuthenticationFilter.class
+        );
     }
 
     @Bean
@@ -82,9 +106,32 @@ public class SecurityConfig extends WebSecurityConfigurerAdapter {
     public UserDetailsService userDetailsService(UserRepository userRepo) {
         return username -> {
             User user = userRepo.findByUsername(username);
-            if (user != null) return user;
+            if (user != null) return new CustomUserDetails(user);
 
             throw new UsernameNotFoundException("User '" + username + "' not found");
         };
     }
+
+    // Used by Spring Security if CORS is enabled.
+    @Bean
+    public CorsFilter corsFilter() {
+        UrlBasedCorsConfigurationSource source =
+                new UrlBasedCorsConfigurationSource();
+        CorsConfiguration config = new CorsConfiguration();
+        config.setAllowCredentials(true);
+        config.addAllowedOrigin("*");
+        config.addAllowedHeader("*");
+        config.addAllowedMethod("*");
+        source.registerCorsConfiguration("/**", config);
+        return new CorsFilter(source);
+    }
+
+//    @Bean
+//    public LogoutSuccessHandler logoutSuccessHandler() {
+//        return (request, response, authentication) -> {
+//            // Custom logout success handler logic (if needed)
+//            response.setStatus(HttpServletResponse.SC_OK);
+//            response.getWriter().flush();
+//        };
+//    }
 }

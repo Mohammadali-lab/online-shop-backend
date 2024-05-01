@@ -28,106 +28,112 @@ import java.util.List;
 @Component
 public class JwtRequestFilter extends OncePerRequestFilter {
 
+    private final ObjectMapper objectMapper;
     private final JwtUtil jwtUtil;
 
     private static final Logger logger = Logger.getLogger(JwtRequestFilter.class);
 
     private final UserService userService;
 
-    private final List<String> publicUrls = Arrays.asList("/api/users/login", "/api/admins/login", "/api/users/register", "/swagger-ui",
+    private final List<String> publicUrls = Arrays.asList("/api/user/login", "/api/admins/login", "/api/user/register", "/swagger-ui",
             "/api/users/forget-password", "/api/users/forget_password_code");
 
-    public JwtRequestFilter(JwtUtil jwtUtil, UserService userService) {
+    public JwtRequestFilter(JwtUtil jwtUtil, UserService userService, ObjectMapper objectMapper) {
         this.jwtUtil = jwtUtil;
         this.userService = userService;
+        this.objectMapper = objectMapper;
     }
 
     @Override
-    protected void doFilterInternal(HttpServletRequest httpServletRequest, HttpServletResponse httpServletResponse, FilterChain filterChain) throws ServletException, IOException {
-
-
-
-//        logger.debug("request reached.....");
-
-        final String authorizationHeader = httpServletRequest.getHeader("Authorization");
-        String requestURI = httpServletRequest.getRequestURI();
-        //logger.debug("url: " + httpServletRequest.getRequestURL());
-        requestURI = requestURI.replaceAll("\\d", "");
-        if (requestURI.charAt(requestURI.length() - 1) == '/') {
-            requestURI = requestURI.substring(0, requestURI.length() - 1);
-        }
-
-        if ((authorizationHeader != null && !authorizationHeader.equals("")) || ((!publicUrls.contains(requestURI) ))) {
-
-            String username = null;
-            String token;
-
-            try {
-                if (authorizationHeader != null && authorizationHeader.startsWith("Bearer ")) {
-                    token = authorizationHeader.substring(7);
-
-                    username = jwtUtil.extractUsername(token);
-                }
-
-                if (username != null && SecurityContextHolder.getContext().getAuthentication() == null) {
-                    UserDetails userDetails = userService.loadUserByUsername(username);
-                    if (userDetails == null) {
-                        httpServletResponse.setStatus(HttpStatus.UNAUTHORIZED.value());
-                        httpServletResponse.setContentType("application/json");
-                        httpServletResponse.getWriter().write(convertObjectToJson(new ApiError(HttpStatus.UNAUTHORIZED, "Invalid Token", "Invalid User")));
-                        return;
-                    }
-                    UsernamePasswordAuthenticationToken usernamePasswordAuthenticationToken = new UsernamePasswordAuthenticationToken(
-                            userDetails, null, userDetails.getAuthorities()
-                    );
-
-                    usernamePasswordAuthenticationToken.setDetails(new WebAuthenticationDetailsSource().buildDetails(httpServletRequest));
-                    SecurityContextHolder.getContext().setAuthentication(usernamePasswordAuthenticationToken);
-                }
-
-            } catch (ExpiredJwtException e) {
-                httpServletResponse.setStatus(HttpStatus.UNAUTHORIZED.value());
-                httpServletResponse.setContentType("application/json");
-                httpServletResponse.getWriter().write(convertObjectToJson(new ApiError(
-                        HttpStatus.UNAUTHORIZED, "JWT Expired", "JWT Expired")));
-                return;
-            } catch (MalformedJwtException e) {
-                httpServletResponse.setStatus(HttpStatus.UNAUTHORIZED.value());
-                httpServletResponse.setContentType("application/json");
-                httpServletResponse.getWriter().write(convertObjectToJson(new ApiError(
-                        HttpStatus.UNAUTHORIZED, "Invalid Token", "MalformedJwtException occurred")));
-                return;
-            } catch (SignatureException e) {
-                httpServletResponse.setStatus(HttpStatus.UNAUTHORIZED.value());
-                httpServletResponse.setContentType("application/json");
-                httpServletResponse.getWriter().write(convertObjectToJson(new ApiError(
-                        HttpStatus.UNAUTHORIZED, "Invalid Token", "SignatureException occurred")));
-                return;
-            } catch (AuthenticationException ex) {
-                httpServletResponse.setStatus(HttpStatus.UNAUTHORIZED.value());
-                httpServletResponse.setContentType("application/json");
-                httpServletResponse.getWriter().write(convertObjectToJson(new ApiError(
-                        HttpStatus.UNAUTHORIZED, ex.getMessage(), ex.getMessage())));
-                return;
-            }
-//            logger.debug("do filter in request filter.......");
-        }
-        //TODO:REZA All request except Get Must Have token
-//        if ((authorizationHeader == null || authorizationHeader.equals("")) && !httpServletRequest.getMethod().equals(HttpMethod.GET.toString())) {
-//            httpServletResponse.setStatus(HttpStatus.UNAUTHORIZED.value());
-//            httpServletResponse.setContentType("application/json");
-//            httpServletResponse.getWriter().write(convertObjectToJson(new ApiError(
-//                    HttpStatus.UNAUTHORIZED, "NO Token", "Token Must be send")));
+    protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain chain) throws ServletException, IOException {
+//        final String authorizationHeader = request.getHeader("Authorization");
+//        String username = null;
+//        String jwt = null;
+//
+//        String reqPath = request.getRequestURI();
+//
+//        // If not matched then continue to the next filter
+//        if ("/api/user/register".equals(reqPath ) || "/api/user/login".equals(reqPath )) {
+//            chain.doFilter(request, response);
 //            return;
 //        }
-        filterChain.doFilter(httpServletRequest, httpServletResponse);
+//
+//        if(authorizationHeader == null){
+//            handleException(response, HttpStatus.UNAUTHORIZED, "Authentication token is needed");
+//            return;
+//        }
+//
+//
+//        if (authorizationHeader.startsWith("Bearer ")) {
+//            jwt = authorizationHeader.substring(7);
+//            try {
+//                username = jwtUtil.extractUsername(jwt);
+//            } catch (ExpiredJwtException e) {
+//                handleException(response, HttpStatus.UNAUTHORIZED, "JWT Expired");
+//                return;
+//            } catch (MalformedJwtException | SignatureException e) {
+//                handleException(response, HttpStatus.UNAUTHORIZED, "Invalid Token");
+//                return;
+//            }
+//        }
+//        if(SecurityContextHolder.getContext().getAuthentication() != null){
+//            String name = SecurityContextHolder.getContext().getAuthentication().getName();
+//            int x = 0;
+//        }
+//
+//        if (username != null && SecurityContextHolder.getContext().getAuthentication() == null) {
+//            UserDetails userDetails = userService.loadUserByUsername(username);
+//            if (jwtUtil.validateToken(jwt, userDetails)) {
+//                UsernamePasswordAuthenticationToken authToken = new UsernamePasswordAuthenticationToken(
+//                        userDetails, null, userDetails.getAuthorities());
+//                authToken.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
+//                SecurityContextHolder.getContext().setAuthentication(authToken);
+//            }
+//        }
+//
+//        chain.doFilter(request, response);
 
-    }
-    public static String convertObjectToJson(Object object) throws JsonProcessingException {
-        if (object == null) {
-            return null;
+        // Get authorization header and validate
+        final String header = request.getHeader("Authorization");
+        if (header==null || !header.startsWith("Bearer ")) {
+            chain.doFilter(request, response);
+            return;
         }
-        ObjectMapper mapper = new ObjectMapper();
-        return mapper.writeValueAsString(object);
+
+        // Get jwt token and validate
+        final String token = header.split(" ")[1].trim();
+        if (!jwtUtil.validateToken(token) || jwtUtil.isTokenExpired(token)) {
+            chain.doFilter(request, response);
+            return;
+        }
+
+        // Get user identity and set it on the spring security context
+        UserDetails userDetails = userService.loadUserByUsername(jwtUtil.extractUsername(token));
+
+        if(!userDetails.isEnabled()){
+            chain.doFilter(request, response);
+            return;
+        }
+
+        UsernamePasswordAuthenticationToken
+                authentication = new UsernamePasswordAuthenticationToken(
+                userDetails, null,
+                userDetails == null ?
+                        List.of() : userDetails.getAuthorities()
+        );
+
+        authentication.setDetails(
+                new WebAuthenticationDetailsSource().buildDetails(request)
+        );
+
+        SecurityContextHolder.getContext().setAuthentication(authentication);
+        chain.doFilter(request, response);
+    }
+
+    private void handleException(HttpServletResponse response, HttpStatus status, String message) throws IOException {
+        ApiError error = new ApiError(status, message);
+        response.setStatus(status.value());
+        response.setContentType("application/json");
+        response.getWriter().write(objectMapper.writeValueAsString(error));
     }
 }
