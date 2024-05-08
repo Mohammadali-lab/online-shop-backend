@@ -1,41 +1,40 @@
 package com.luv2code.ecommerce.utils;
 
-import com.luv2code.ecommerce.entity.BaseEntity;
-import com.luv2code.ecommerce.entity.User;
+import com.luv2code.ecommerce.entity.Admin;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.userdetails.UserDetails;
 
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Collection;
 
-public class CustomUserDetails implements UserDetails {
+public class CustomAdminDetails implements UserDetails {
 
-    private final BaseEntity user;
+    private Admin admin;
 
-    public CustomUserDetails(BaseEntity user) {
-        this.user = user;
+    public CustomAdminDetails (Admin admin) {
+
+        this.admin = admin;
     }
+
     @Override
     public Collection<? extends GrantedAuthority> getAuthorities() {
-        return Arrays.asList(new SimpleGrantedAuthority("ROLE_USER"));
+
+        ArrayList<SimpleGrantedAuthority> authorities = new ArrayList<>();
+        admin.getRole().getPrivilegeRoles().forEach(x -> authorities.add(
+                new SimpleGrantedAuthority(x.getPrivilege().getPrivilege().toString()))
+        );
+        return authorities;
     }
 
     @Override
     public String getPassword() {
-        if (user instanceof User) {
-            return ((User) user).getPassword();
-        }
-        return null;
+        return admin.getPassword();
     }
 
     @Override
     public String getUsername() {
-        if (user instanceof User) {
-            return ((User) user).getUsername();
-        }
-        return null;
+        return admin.getUsername();
     }
 
     @Override
@@ -55,9 +54,6 @@ public class CustomUserDetails implements UserDetails {
 
     @Override
     public boolean isEnabled() {
-        if (user instanceof User) {
-            return ((User) user).isEnabled();
-        }
-        return false;
+        return admin.isEnabled();
     }
 }

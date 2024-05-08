@@ -1,8 +1,11 @@
 package com.luv2code.ecommerce.config;
 
+import com.luv2code.ecommerce.dao.AdminRepository;
 import com.luv2code.ecommerce.dao.UserRepository;
+import com.luv2code.ecommerce.entity.Admin;
 import com.luv2code.ecommerce.entity.User;
 import com.luv2code.ecommerce.service.UserService;
+import com.luv2code.ecommerce.utils.CustomAdminDetails;
 import com.luv2code.ecommerce.utils.CustomUserDetails;
 import com.luv2code.ecommerce.utils.JwtRequestFilter;
 import org.apache.log4j.Logger;
@@ -31,6 +34,7 @@ import org.springframework.web.filter.CorsFilter;
 import javax.servlet.http.HttpServletResponse;
 import javax.sql.DataSource;
 import java.nio.file.attribute.UserPrincipalNotFoundException;
+import java.util.Optional;
 
 @Configuration
 @EnableWebSecurity
@@ -109,6 +113,16 @@ public class SecurityConfig extends WebSecurityConfigurerAdapter {
             if (user != null) return new CustomUserDetails(user);
 
             throw new UsernameNotFoundException("User '" + username + "' not found");
+        };
+    }
+
+    @Bean
+    public UserDetailsService adminDetailsService(AdminRepository adminRepo) {
+        return username -> {
+            Optional<Admin> admin = adminRepo.findByUsername(username);
+            if (admin.isPresent()) return new CustomAdminDetails(admin.get());
+
+            throw new UsernameNotFoundException("Admin '" + username + "' not found");
         };
     }
 
